@@ -32,7 +32,7 @@ public:
     public:
         Builder& setSense(ObjectiveSense sense);
 
-        int addVariable(double cost, double lb, double ub);
+        Builder& addVariable(double cost, double lb, double ub);
 
         Builder& addConstraint(
             double lb, double ub,

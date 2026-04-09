@@ -5,9 +5,9 @@ LinearProgram::Builder& LinearProgram::Builder::setSense(ObjectiveSense sense) {
     return *this; 
 }
 
-int LinearProgram::Builder::addVariable(double cost, double lb, double ub) {
+LinearProgram::Builder& LinearProgram::Builder::addVariable(double cost, double lb, double ub) {
     data_.variables.push_back({cost, lb, ub});
-    return data_.variables.size() - 1;
+    return *this;
 }
 
 LinearProgram::Builder& LinearProgram::Builder::addConstraint(

@@ -15,10 +15,6 @@ public:
     double getObjectiveValue() const override;
     double getVariableValue(int varIndex) const override;
 
-    void addConstraint(double lowerBound, double upperBound, 
-                       const std::vector<double>& coefficients) override;
-    void removeContraints(const std::vector<int>& rowsToDelete) override;
-
     std::string report() const;
 
 private:

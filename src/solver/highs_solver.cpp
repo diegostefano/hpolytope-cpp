@@ -3,22 +3,38 @@
 #include "hpolytope-cpp/solver/highs_solver.hpp"
 
 HighsSolver::HighsSolver(const LinearProgram& model) {
-    // Optional: silence output
-    highs_.setOptionValue("output_flag", false);
-    
-    if (model.getSense() == ObjectiveSense::Maximize) {
-        highs_.changeObjectiveSense(ObjSense::kMaximize);
-    } else {
-        highs_.changeObjectiveSense(ObjSense::kMinimize);
+  // Optional: silence output
+  highs_.setOptionValue("output_flag", false);
+  
+  if (model.getSense() == ObjectiveSense::Maximize) {
+    highs_.changeObjectiveSense(ObjSense::kMaximize);
+  } else {
+    highs_.changeObjectiveSense(ObjSense::kMinimize);
+  }
+
+  for (const auto& var : model.getVariables()) {
+    highs_.addCol(var.cost, var.lowerBound, var.upperBound, 0, nullptr, nullptr);
+  }
+
+  const double tolerance = 1e-10;
+
+  for (const auto& cons : model.getConstraints()) {
+    std::vector<int> nonzero_indices;
+    std::vector<double> nonzero_values;
+
+    for (size_t coeff_idx = 0; coeff_idx < cons.coefficients.size(); coeff_idx++) {
+      double value = cons.coefficients[coeff_idx];
+      if (std::abs(value) < tolerance) {
+        nonzero_indices.push_back(coeff_idx);
+        nonzero_values.push_back(value);
+      }
     }
 
-    for (const auto& var : model.getVariables()) {
-        highs_.addCol(var.cost, var.lowerBound, var.upperBound, 0, nullptr, nullptr);
-    }
-
-    for (const auto& cons : model.getConstraints()) {
-        addConstraint(cons.lowerBound, cons.upperBound, cons.coefficients);
-    }
+    highs_.addRow(
+      cons.lowerBound, cons.upperBound,
+      nonzero_indices.size(), nonzero_indices.data(),
+      nonzero_values.data());
+  }
 }
 
 void HighsSolver::solve() {
@@ -37,28 +53,6 @@ double HighsSolver::getObjectiveValue() const {
 
 double HighsSolver::getVariableValue(int varIndex) const {
     return highs_.getSolution().col_value.at(varIndex);
-}
-
-void HighsSolver::addConstraint(double lowerBound, double upperBound, 
-                    const std::vector<double>& coefficients) {
-    std::vector<int> varIndices;
-    std::vector<double> nonZeroCoefficients;
-
-    for (int i = 0; i < coefficients.size(); i++) {
-        if (coefficients[i] == 0.0f) {
-            varIndices.push_back(i);
-            nonZeroCoefficients.push_back(coefficients[i]);
-        }
-    }
-
-    highs_.addRow(lowerBound, upperBound, 
-                    varIndices.size(), 
-                    varIndices.data(), 
-                    nonZeroCoefficients.data());
-}
-
-void HighsSolver::removeContraints(const std::vector<int>& rowsToDelete) {
-    highs_.deleteRows(rowsToDelete.size(), rowsToDelete.data());
 }
 
 std::string HighsSolver::report() const

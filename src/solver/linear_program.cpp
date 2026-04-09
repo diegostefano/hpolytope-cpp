@@ -5,6 +5,11 @@ LinearProgram::Builder& LinearProgram::Builder::setSense(ObjectiveSense sense) {
     return *this; 
 }
 
+LinearProgram::Builder& LinearProgram::Builder::setOffset(double offset) {
+  data_.offset = offset;
+  return *this;
+}
+
 LinearProgram::Builder& LinearProgram::Builder::addVariable(double cost, double lb, double ub) {
     data_.variables.push_back({cost, lb, ub});
     return *this;

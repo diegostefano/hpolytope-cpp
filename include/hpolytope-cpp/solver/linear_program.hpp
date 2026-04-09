@@ -22,6 +22,7 @@ struct InternalData {
     ObjectiveSense sense = ObjectiveSense::Minimize;
     std::vector<Variable> variables;
     std::vector<Constraint> constraints;
+    double offset = 0.0;
 };
 
 class LinearProgram {
@@ -31,6 +32,8 @@ public:
     class Builder {
     public:
         Builder& setSense(ObjectiveSense sense);
+
+        Builder& setOffset(double offset);
 
         Builder& addVariable(double cost, double lb, double ub);
 
@@ -45,16 +48,21 @@ public:
     };
 
     ObjectiveSense getSense() const { return sense_; }
+    double getOffset() const { return offset_; }
     const std::vector<Variable>& getVariables() const { return variables_; }
     const std::vector<Constraint>& getConstraints() const { return constraints_; }
 
 private:
     explicit LinearProgram(InternalData data) 
-        : sense_(data.sense), variables_(std::move(data.variables)), constraints_(std::move(data.constraints)) {}
+        : sense_(data.sense)
+        , offset_(data.offset)
+        , variables_(std::move(data.variables))
+        , constraints_(std::move(data.constraints)) {}
 
     ObjectiveSense sense_;
     std::vector<Variable> variables_;
     std::vector<Constraint> constraints_;
+    double offset_;
 };
 
 #endif

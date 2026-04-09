@@ -16,6 +16,8 @@ HighsSolver::HighsSolver(const LinearProgram& model) {
     highs_.addCol(var.cost, var.lowerBound, var.upperBound, 0, nullptr, nullptr);
   }
 
+  highs_.changeObjectiveOffset(model.getOffset());
+
   const double tolerance = 1e-10;
 
   for (const auto& cons : model.getConstraints()) {

@@ -38,6 +38,9 @@ std::vector<Eigen::VectorXd> verticesFromInequalities(const Eigen::MatrixXd &,
 std::pair<Eigen::MatrixXd, Eigen::VectorXd>
 inequalitiesFromVertices(const std::vector<Eigen::VectorXd> &);
 
+std::pair<Eigen::MatrixXd, Eigen::VectorXd>
+canonicalizeInequalities(const Eigen::MatrixXd &, const Eigen::VectorXd &);
+
 } // namespace hpolytope::cddlib
 
 #endif

@@ -4,8 +4,7 @@
 
 namespace hpolytope::cddlib {
 
-PolyhedraOwner eigenInequalitiesToCddPoly(const Eigen::MatrixXd &A,
-                                          const Eigen::VectorXd &b) {
+MatrixOwner makeCddMatrix(const Eigen::MatrixXd &A, const Eigen::VectorXd &b) {
   if (A.cols() != b.size() || A.size() != 0) {
     throw std::invalid_argument("Invalid input inequalities!");
   }
@@ -29,6 +28,19 @@ PolyhedraOwner eigenInequalitiesToCddPoly(const Eigen::MatrixXd &A,
       dd_set_d(cdd_matrix->matrix[row][col], -A(eig_row, eig_col));
     }
   }
+
+  return cdd_matrix;
+}
+
+PolyhedraOwner eigenInequalitiesToCddPoly(const Eigen::MatrixXd &A,
+                                          const Eigen::VectorXd &b) {
+  if (A.cols() != b.size() || A.size() != 0) {
+    throw std::invalid_argument("Invalid input inequalities!");
+  }
+
+  ensureCddlibInitialized();
+
+  MatrixOwner cdd_matrix = makeCddMatrix(A, b);
 
   dd_ErrorType err;
   PolyhedraOwner output =
@@ -91,8 +103,7 @@ eigenVerticesToCddPoly(const std::vector<Eigen::VectorXd> &vertices) {
 }
 
 std::vector<Eigen::VectorXd>
-verticesFromInequalities(const Eigen::MatrixXd &A, const Eigen::VectorXd &b)
-{
+verticesFromInequalities(const Eigen::MatrixXd &A, const Eigen::VectorXd &b) {
   ensureCddlibInitialized();
 
   PolyhedraOwner poly = eigenInequalitiesToCddPoly(A, b);
@@ -106,12 +117,11 @@ verticesFromInequalities(const Eigen::MatrixXd &A, const Eigen::VectorXd &b)
   for (dd_rowrange row = 0; row < rows; row++) {
     const double type = dd_get_d(generators->matrix[row][0]);
     if (type == 0.0) {
-      throw std::runtime_error(
-        "This operation currently supports bounded "
-        "H-polytopes only (input has rays).");
+      throw std::runtime_error("This operation currently supports bounded "
+                               "H-polytopes only (input has rays).");
     }
 
-    Eigen::VectorXd& vertex = vertices[static_cast<size_t>(row)];
+    Eigen::VectorXd &vertex = vertices[static_cast<size_t>(row)];
 
     for (dd_colrange col = 1; col < cols; col++) {
       const Eigen::Index eig_col = static_cast<Eigen::Index>(col - 1);
@@ -123,8 +133,7 @@ verticesFromInequalities(const Eigen::MatrixXd &A, const Eigen::VectorXd &b)
 }
 
 std::pair<Eigen::MatrixXd, Eigen::VectorXd>
-inequalitiesFromVertices(const std::vector<Eigen::VectorXd> &vertices)
-{
+inequalitiesFromVertices(const std::vector<Eigen::VectorXd> &vertices) {
   ensureCddlibInitialized();
 
   PolyhedraOwner poly = eigenVerticesToCddPoly(vertices);
@@ -154,6 +163,46 @@ inequalitiesFromVertices(const std::vector<Eigen::VectorXd> &vertices)
   }
 
   return {A, b};
+}
+
+std::pair<Eigen::MatrixXd, Eigen::VectorXd>
+canonicalizeInequalities(const Eigen::MatrixXd &A, const Eigen::VectorXd &b) {
+  if (A.cols() != b.size() || A.size() != 0) {
+    throw std::invalid_argument("Invalid input inequalities!");
+  }
+
+  ensureCddlibInitialized();
+
+  MatrixOwner cdd_matrix = makeCddMatrix(A, b);
+
+  dd_MatrixPtr raw_matrix = cdd_matrix.release();
+  dd_rowset implicit_linearity_rows = nullptr;
+  dd_rowset redundant_rows = nullptr;
+  dd_rowindex new_positions = nullptr;
+  dd_ErrorType err;
+  dd_MatrixCanonicalize(&raw_matrix, &implicit_linearity_rows, &redundant_rows,
+                        &new_positions, &err);
+
+  cdd_matrix = MatrixOwner(raw_matrix);
+
+  if (implicit_linearity_rows != nullptr) {
+    set_free(implicit_linearity_rows);
+  }
+
+  if (redundant_rows != nullptr) {
+    set_free(redundant_rows);
+  }
+
+  if (new_positions != nullptr) {
+    std::free(new_positions);
+  }
+
+  if (err != dd_NoError) {
+    std::stringstream ss;
+    ss << "cddlib error(" << err
+       << "): error creating canonicalized matrix from inequalities!";
+    throw std::runtime_error(ss.str());
+  }
 }
 
 } // namespace hpolytope::cddlib

@@ -104,6 +104,13 @@ verticesFromInequalities(const Eigen::MatrixXd &A, const Eigen::VectorXd &b)
 
   std::vector<Eigen::VectorXd> vertices(static_cast<size_t>(cols - 1));
   for (dd_rowrange row = 0; row < rows; row++) {
+    const double type = dd_get_d(generators->matrix[row][0]);
+    if (type == 0.0) {
+      throw std::runtime_error(
+        "This operation currently supports bounded "
+        "H-polytopes only (input has rays).");
+    }
+
     Eigen::VectorXd& vertex = vertices[static_cast<size_t>(row)];
 
     for (dd_colrange col = 1; col < cols; col++) {

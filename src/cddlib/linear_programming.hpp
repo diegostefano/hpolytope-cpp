@@ -32,6 +32,8 @@ public:
 
   double solve();
 
+  bool Ok() const { return lp_->LPS == dd_Optimal; }
+
 private:
   struct LPDataDeleter {
     void operator()(dd_LPPtr lp) { dd_FreeLPData(lp); }

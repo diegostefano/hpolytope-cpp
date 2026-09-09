@@ -1,25 +1,61 @@
-#include "hpolytope.hpp"
+#include "hpolytope-cpp/hpolytope.hpp"
+
+#include "cddlib/linear_programming.hpp"
+#include <Eigen/Core>
+#include <algorithm>
+#include <stdexcept>
+
+namespace hpolytope {
 
 HPolytope::HPolytope(const Eigen::MatrixXd &A, const Eigen::VectorXd &b) {}
 
 bool HPolytope::isEmpty() const {
-  // TODO: test emptiness verifying wether a cached
-  // emptiness flag already exists. If it doesn't,
-  // use V-representation if available; if not,
-  // make the LP test with the H-representation.
-  return false;
+  if (is_empty_.value_or(false)) {
+    return true;
+  }
+
+  if (cached_vertices_.has_value()) {
+    return cached_vertices_->empty();
+  }
+
+  cddlib::LinearProgramming lp(dd_LPmin, A_.cols(), A_.rows());
+  lp.setConstraints(A_, b_);
+  lp.setCost(Eigen::VectorXd::Zero(A_.cols()), 0.0);
+  lp.solve();
+
+  return lp.Ok();
 }
 
 bool HPolytope::contains(const Eigen::VectorXd &point) {
-  // TODO: use H-rep directly here.
-  return false;
+  if (point.size() != A_.cols())
+    std::invalid_argument("contains: invalid point dimension!");
+
+  return ((A_ * point).array() <= b_.array()).all();
 }
 
 bool HPolytope::contains(const HPolytope &poly) {
-  // TODO: If a cached V-rep exists for the smaller,
-  // use the H-rep inequalities to verify containment;
-  // if not, solve a bunch of LPs using H-rep from
-  // both.
+  if (poly.isEmpty())
+    return true;
+
+  if (poly.hasCachedVertices()) {
+    return std::all_of(poly.cached_vertices_->begin(),
+                       poly.cached_vertices_->end(),
+                       [&](const Eigen::VectorXd &vertice) {
+                         return ((A_ * vertice).array() <= b_.array()).all();
+                       });
+  }
+
+  cddlib::LinearProgramming lp(dd_LPmax, A_.cols(), poly.A_.rows());
+  lp.setConstraints(poly.A_, poly.b_);
+
+  for (Eigen::Index i = 0; i < A_.rows(); ++i) {
+    lp.setCost(A_.row(i).transpose(), 0.0);
+    const double max_value = lp.solve();
+
+    if (max_value > b_(i) + kTolerance)
+      return false;
+  }
+
   return false;
 }
 
@@ -91,3 +127,5 @@ HPolytope HPolytope::operator|(const HPolytope &rhs) {
 HPolytope operator*(const Eigen::MatrixXd &lhs, const HPolytope &rhs) {
   return rhs.linearMap(lhs);
 }
+
+} // namespace hpolytope

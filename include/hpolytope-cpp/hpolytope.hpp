@@ -5,6 +5,8 @@
 
 #include <Eigen/Dense>
 
+namespace hpolytope {
+
 class HPolytope {
 public:
   HPolytope() = delete;
@@ -14,6 +16,7 @@ public:
   bool contains(const Eigen::VectorXd &point);
   bool contains(const HPolytope &poly);
 
+  bool hasCachedVertices() const { return cached_vertices_.has_value(); }
   std::vector<Eigen::VectorXd> vertices();
   HPolytope minimumRepresentation();
   double supportFunction(const Eigen::VectorXd &direction);
@@ -37,6 +40,10 @@ private:
 
   std::optional<std::vector<Eigen::VectorXd>> cached_vertices_{std::nullopt};
   std::optional<bool> is_empty_{std::nullopt};
+
+  static constexpr double kTolerance = 1e-6;
 };
+
+} // namespace hpolytope
 
 #endif // __HPOLYTOPES__POLYTOPE_HPP__

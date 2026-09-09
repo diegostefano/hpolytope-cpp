@@ -19,14 +19,18 @@ endif()
 add_executable(
     ${PROJECT_NAME}
     main.cpp
+    src/hpolytope.cpp
     src/cddlib/runtime.cpp
     src/cddlib/linear_programming.cpp
 )
 
 target_include_directories(
     ${PROJECT_NAME}
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>
     PRIVATE
-    ./include
+      ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 target_link_libraries(
@@ -36,3 +40,4 @@ target_link_libraries(
     Eigen3::Eigen
     PkgConfig::cddlib
 )
+

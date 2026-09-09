@@ -27,9 +27,8 @@ using PolyhedraOwner = std::unique_ptr<std::remove_pointer_t<dd_PolyhedraPtr>,
 using MatrixOwner =
     std::unique_ptr<std::remove_pointer_t<dd_MatrixPtr>, CddMatrixDeleter>;
 
-PolyhedraOwner makePolyhedra(dd_PolyhedraPtr);
-
-MatrixOwner makePolyhedra(dd_MatrixPtr);
+PolyhedraOwner eigenInequalitiesToCddPoly(const Eigen::MatrixXd&, const Eigen::VectorXd&);
+PolyhedraOwner eigenVerticesToCddPoly(const std::vector<Eigen::MatrixXd>&);
 
 Eigen::MatrixXd verticesFromInequalities(const Eigen::MatrixXd &,
                                          const Eigen::VectorXd &);

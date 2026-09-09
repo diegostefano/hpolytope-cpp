@@ -1,3 +1,152 @@
 #include "adapter.hpp"
 
-namespace hpolytope::cddlib {}
+#include "runtime.hpp"
+
+namespace hpolytope::cddlib {
+
+PolyhedraOwner eigenInequalitiesToCddPoly(const Eigen::MatrixXd &A,
+                                          const Eigen::VectorXd &b) {
+  if (A.cols() != b.size() || A.size() != 0) {
+    throw std::invalid_argument("Invalid input inequalities!");
+  }
+
+  ensureCddlibInitialized();
+
+  MatrixOwner cdd_matrix =
+      MatrixOwner(dd_CreateMatrix(static_cast<dd_rowrange>(A.rows()),
+                                  static_cast<dd_rowrange>(A.cols() + 1)));
+
+  cdd_matrix->numbtype = dd_Real;
+  cdd_matrix->representation = dd_Inequality;
+  set_emptyset(cdd_matrix->linset);
+
+  for (dd_rowrange row = 0; row < cdd_matrix->rowsize; row++) {
+    Eigen::Index eig_row = static_cast<Eigen::Index>(row);
+    dd_set_d(cdd_matrix->matrix[row][0], b(eig_row));
+
+    for (dd_colrange col = 1; col < cdd_matrix->colsize; col++) {
+      Eigen::Index eig_col = static_cast<Eigen::Index>(col - 1);
+      dd_set_d(cdd_matrix->matrix[row][col], -A(eig_row, eig_col));
+    }
+  }
+
+  dd_ErrorType err;
+  PolyhedraOwner output =
+      PolyhedraOwner(dd_DDMatrix2Poly(cdd_matrix.get(), &err));
+
+  if (err != dd_NoError) {
+    std::stringstream ss;
+    ss << "cddlib error(" << err
+       << "): error creating polytope from inequalities!";
+    throw std::runtime_error(ss.str());
+  }
+  return output;
+}
+
+PolyhedraOwner
+eigenVerticesToCddPoly(const std::vector<Eigen::VectorXd> &vertices) {
+  if (vertices.size() == 0) {
+    throw std::invalid_argument("Input vertices set cannot be empty!");
+  }
+
+  Eigen::Index vertex_dim = vertices[0].size();
+  for (const Eigen::VectorXd &vertex : vertices) {
+    if (vertex_dim != vertex.size()) {
+      throw std::invalid_argument("Inconsistent vertex dimensions!");
+    }
+  }
+
+  ensureCddlibInitialized();
+
+  MatrixOwner cdd_matrix =
+      MatrixOwner(dd_CreateMatrix(static_cast<dd_rowrange>(vertices.size()),
+                                  static_cast<dd_rowrange>(vertex_dim)));
+
+  cdd_matrix->numbtype = dd_Real;
+  cdd_matrix->representation = dd_Generator;
+  set_emptyset(cdd_matrix->linset);
+
+  for (dd_rowrange row = 0; row < cdd_matrix->rowsize; row++) {
+    Eigen::Index eig_row = static_cast<Eigen::Index>(row);
+    dd_set_d(cdd_matrix->matrix[row][0], 1.0);
+
+    const Eigen::VectorXd &vertex = vertices[static_cast<size_t>(row)];
+    for (dd_colrange col = 1; col < cdd_matrix->colsize; col++) {
+      Eigen::Index eig_col = static_cast<Eigen::Index>(col - 1);
+      dd_set_d(cdd_matrix->matrix[row][col], vertex[eig_col]);
+    }
+  }
+
+  dd_ErrorType err;
+  PolyhedraOwner output =
+      PolyhedraOwner(dd_DDMatrix2Poly(cdd_matrix.get(), &err));
+
+  if (err != dd_NoError) {
+    std::stringstream ss;
+    ss << "cddlib error(" << err << "): error creating polytope from vertices!";
+    throw std::runtime_error(ss.str());
+  }
+
+  return output;
+}
+
+std::vector<Eigen::VectorXd>
+verticesFromInequalities(const Eigen::MatrixXd &A, const Eigen::VectorXd &b)
+{
+  ensureCddlibInitialized();
+
+  PolyhedraOwner poly = eigenInequalitiesToCddPoly(A, b);
+
+  MatrixOwner generators = MatrixOwner(dd_CopyGenerators(poly.get()));
+
+  const dd_rowrange rows = generators->rowsize;
+  const dd_colrange cols = generators->colsize;
+
+  std::vector<Eigen::VectorXd> vertices(static_cast<size_t>(cols - 1));
+  for (dd_rowrange row = 0; row < rows; row++) {
+    Eigen::VectorXd& vertex = vertices[static_cast<size_t>(row)];
+
+    for (dd_colrange col = 1; col < cols; col++) {
+      const Eigen::Index eig_col = static_cast<Eigen::Index>(col - 1);
+      vertex(eig_col) = dd_get_d(generators->matrix[row][col]);
+    }
+  }
+
+  return vertices;
+}
+
+std::pair<Eigen::MatrixXd, Eigen::VectorXd>
+inequalitiesFromVertices(const std::vector<Eigen::VectorXd> &vertices)
+{
+  ensureCddlibInitialized();
+
+  PolyhedraOwner poly = eigenVerticesToCddPoly(vertices);
+
+  MatrixOwner inequality_matrix = MatrixOwner(dd_CopyInequalities(poly.get()));
+
+  const dd_rowrange rows = inequality_matrix->rowsize;
+  const dd_colrange cols = inequality_matrix->colsize;
+
+  const Eigen::Index eig_rows = static_cast<Eigen::Index>(rows);
+  const Eigen::Index eig_cols = static_cast<Eigen::Index>(cols - 1);
+
+  Eigen::MatrixXd A;
+  A.resize(eig_rows, eig_cols);
+
+  Eigen::VectorXd b;
+  b.resize(eig_rows);
+
+  for (dd_rowrange row = 0; row < rows; row++) {
+    const Eigen::Index eig_row = static_cast<Eigen::Index>(row);
+    b(eig_row) = dd_get_d(inequality_matrix->matrix[eig_row][0]);
+
+    for (dd_colrange col = 1; col < cols; col++) {
+      const Eigen::Index eig_col = static_cast<Eigen::Index>(col - 1);
+      A(eig_col) = -dd_get_d(inequality_matrix->matrix[row][col]);
+    }
+  }
+
+  return {A, b};
+}
+
+} // namespace hpolytope::cddlib

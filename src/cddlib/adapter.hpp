@@ -27,16 +27,17 @@ using PolyhedraOwner = std::unique_ptr<std::remove_pointer_t<dd_PolyhedraPtr>,
 using MatrixOwner =
     std::unique_ptr<std::remove_pointer_t<dd_MatrixPtr>, CddMatrixDeleter>;
 
-PolyhedraOwner eigenInequalitiesToCddPoly(const Eigen::MatrixXd&, const Eigen::VectorXd&);
-PolyhedraOwner eigenVerticesToCddPoly(const std::vector<Eigen::MatrixXd>&);
+PolyhedraOwner eigenInequalitiesToCddPoly(const Eigen::MatrixXd &,
+                                          const Eigen::VectorXd &);
 
-Eigen::MatrixXd verticesFromInequalities(const Eigen::MatrixXd &,
-                                         const Eigen::VectorXd &);
+PolyhedraOwner eigenVerticesToCddPoly(const std::vector<Eigen::MatrixXd> &);
+
+std::vector<Eigen::VectorXd> verticesFromInequalities(const Eigen::MatrixXd &,
+                                                      const Eigen::VectorXd &);
 
 std::pair<Eigen::MatrixXd, Eigen::VectorXd>
-inequalitiesFromVertices(const Eigen::VectorXd &);
+inequalitiesFromVertices(const std::vector<Eigen::VectorXd> &);
 
-std::vector<Eigen::VectorXd> uniqueVertices(const std::vector<Eigen::VectorXd> &);
 } // namespace hpolytope::cddlib
 
 #endif

@@ -1,5 +1,6 @@
 #include "hpolytope-cpp/hpolytope.hpp"
 
+#include "cddlib/adapter.hpp"
 #include "cddlib/linear_programming.hpp"
 #include <Eigen/Core>
 #include <algorithm>
@@ -45,7 +46,7 @@ bool HPolytope::contains(const HPolytope &poly) {
                        });
   }
 
-  cddlib::LinearProgramming lp(dd_LPmax, A_.cols(), poly.A_.rows());
+  cddlib::LinearProgramming lp(dd_LPmax, poly.A_.cols(), poly.A_.rows());
   lp.setConstraints(poly.A_, poly.b_);
 
   for (Eigen::Index i = 0; i < A_.rows(); ++i) {
@@ -59,21 +60,38 @@ bool HPolytope::contains(const HPolytope &poly) {
   return false;
 }
 
-std::vector<Eigen::VectorXd> vertices() {
-  // TODO: if there are cached vertices return it;
-  // if not, perform vertex enumeration over the V-rep.
-  return {};
+std::vector<Eigen::VectorXd> HPolytope::vertices() {
+  if (cached_vertices_.has_value()) {
+    return cached_vertices_.value();
+  }
+
+  std::vector<Eigen::VectorXd> vertices =
+      cddlib::verticesFromInequalities(A_, b_);
+
+  return vertices;
 }
 
 HPolytope HPolytope::minimumRepresentation() {
-  // TODO: if there are cached vertices, return hull;
-  // if not, remove redundancies using LPs.
-  return *this;
+  if (cached_vertices_.has_value()) {
+    auto [minimal_A, minimal_b] =
+        cddlib::inequalitiesFromVertices(cached_vertices_.value());
+    return HPolytope(minimal_A, minimal_b);
+  }
+
+  auto [minimal_A, minimal_b] = cddlib::canonicalizeInequalities(A_, b_);
+  return HPolytope(minimal_A, minimal_b);
 }
 
 double HPolytope::supportFunction(const Eigen::VectorXd &direction) {
-  // TODO: solve the LP.
-  return 0.0;
+  if (direction.size() != A_.cols()) {
+    throw std::invalid_argument(
+        "Invalid direction dimensionality for support function!");
+  }
+  cddlib::LinearProgramming lp(dd_LPmax, A_.cols(), A_.rows());
+  lp.setConstraints(A_, b_);
+  lp.setCost(direction, 0.0);
+
+  return lp.solve();
 }
 
 HPolytope HPolytope::minkowskySum(const HPolytope &rhs) {

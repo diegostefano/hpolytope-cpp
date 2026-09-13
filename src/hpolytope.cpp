@@ -8,11 +8,27 @@
 
 namespace hpolytope {
 
-HPolytope::HPolytope(const Eigen::MatrixXd &A, const Eigen::VectorXd &b) {}
+HPolytope::HPolytope(size_t dimension) {
+  A_ = Eigen::MatrixXd::Zero(1, dimension);
+  b_ = Eigen::VectorXd::Constant(1, -1.0);
+
+  is_empty_ = true;
+  cached_vertices_ = std::vector<Eigen::VectorXd>{};
+}
+
+HPolytope::HPolytope(const Eigen::MatrixXd &A, const Eigen::VectorXd &b) {
+  if (A.rows() != b.size()) {
+    throw std::invalid_argument(
+        "Incompatible dimensions: cannot create HPolytope.");
+  }
+
+  A_ = A;
+  b_ = b;
+}
 
 bool HPolytope::isEmpty() const {
-  if (is_empty_.value_or(false)) {
-    return true;
+  if (is_empty_.has_value()) {
+    return *is_empty_;
   }
 
   if (cached_vertices_.has_value()) {
@@ -24,12 +40,23 @@ bool HPolytope::isEmpty() const {
   lp.setCost(Eigen::VectorXd::Zero(A_.cols()), 0.0);
   lp.solve();
 
-  return lp.Ok();
+  if (lp.Ok()) {
+    is_empty_ = false;
+    return false;
+  }
+
+  if (lp.Infeasible()) {
+    is_empty_ = true;
+    return true;
+  }
+
+  throw std::runtime_error("Unable to determine polytope emptiness from LP.");
 }
 
 bool HPolytope::contains(const Eigen::VectorXd &point) {
-  if (point.size() != A_.cols())
-    std::invalid_argument("contains: invalid point dimension!");
+  if (point.size() != A_.cols()) {
+    throw std::invalid_argument("contains: invalid point dimension!");
+  }
 
   return ((A_ * point).array() <= b_.array()).all();
 }
@@ -57,18 +84,15 @@ bool HPolytope::contains(const HPolytope &poly) {
       return false;
   }
 
-  return false;
+  return true;
 }
 
-std::vector<Eigen::VectorXd> HPolytope::vertices() {
-  if (cached_vertices_.has_value()) {
-    return cached_vertices_.value();
+std::vector<Eigen::VectorXd> HPolytope::vertices() const {
+  if (!cached_vertices_.has_value()) {
+    cached_vertices_ = cddlib::verticesFromInequalities(A_, b_);
   }
 
-  std::vector<Eigen::VectorXd> vertices =
-      cddlib::verticesFromInequalities(A_, b_);
-
-  return vertices;
+  return *cached_vertices_;
 }
 
 HPolytope HPolytope::minimumRepresentation() {
@@ -87,6 +111,17 @@ double HPolytope::supportFunction(const Eigen::VectorXd &direction) {
     throw std::invalid_argument(
         "Invalid direction dimensionality for support function!");
   }
+
+  if (cached_vertices_.has_value()) {
+    double support = -std::numeric_limits<double>::infinity();
+
+    for (const auto &vertex : *cached_vertices_) {
+      support = std::max(support, direction.dot(vertex));
+    }
+
+    return support;
+  }
+
   cddlib::LinearProgramming lp(dd_LPmax, A_.cols(), A_.rows());
   lp.setConstraints(A_, b_);
   lp.setCost(direction, 0.0);
@@ -94,10 +129,33 @@ double HPolytope::supportFunction(const Eigen::VectorXd &direction) {
   return lp.solve();
 }
 
-HPolytope HPolytope::minkowskySum(const HPolytope &rhs) {
-  // TODO: if there are cached vertices, just use it;
-  // if not, generate them and use it.
-  return *this;
+HPolytope HPolytope::minkowskiSum(const HPolytope &rhs) const {
+  if (A_.cols() != rhs.A_.cols()) {
+    throw std::invalid_argument("Minkowski sum requires both polytopes to "
+                                "have the same dimensionality.");
+  }
+
+  if (isEmpty() || rhs.isEmpty()) {
+    return HPolytope(A_.cols());
+  }
+
+  const auto &left_vertices = vertices();
+  const auto &right_vertices = rhs.vertices();
+
+  std::vector<Eigen::VectorXd> output;
+  output.reserve(left_vertices.size() * right_vertices.size());
+
+  for (const Eigen::VectorXd &v : left_vertices) {
+    for (const Eigen::VectorXd &w : right_vertices) {
+      output.emplace_back(v + w);
+    }
+  }
+
+  const auto &[A, b] = cddlib::inequalitiesFromVertices(output);
+  HPolytope result(A, b);
+  result.cached_vertices_ = output;
+
+  return result;
 }
 
 HPolytope HPolytope::pontryaginDiff(const HPolytope &rhs) {
@@ -123,8 +181,8 @@ bool HPolytope::operator>(const HPolytope &poly) {
   return this->contains(poly);
 }
 
-HPolytope HPolytope::operator+(const HPolytope &rhs) {
-  return minkowskySum(rhs);
+HPolytope HPolytope::operator+(const HPolytope &rhs) const {
+  return minkowskiSum(rhs);
 }
 
 HPolytope HPolytope::operator-(const HPolytope &rhs) {

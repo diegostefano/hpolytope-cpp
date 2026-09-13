@@ -14,26 +14,28 @@ public:
   HPolytope(const Eigen::MatrixXd &A, const Eigen::VectorXd &b);
 
   bool isEmpty() const;
-  bool contains(const Eigen::VectorXd &point);
-  bool contains(const HPolytope &poly);
+  bool contains(const Eigen::VectorXd &point) const;
+  bool contains(const HPolytope &poly) const;
 
   bool hasCachedVertices() const { return cached_vertices_.has_value(); }
   std::vector<Eigen::VectorXd> vertices() const;
-  HPolytope minimumRepresentation();
-  double supportFunction(const Eigen::VectorXd &direction);
+  HPolytope minimumRepresentation() const;
+  double supportFunction(const Eigen::VectorXd &direction) const;
 
   HPolytope minkowskiSum(const HPolytope &rhs) const;
-  HPolytope pontryaginDiff(const HPolytope &rhs);
+  HPolytope pontryaginDiff(const HPolytope &rhs) const;
   HPolytope linearMap(const Eigen::MatrixXd &A) const;
-  HPolytope preImage(const Eigen::MatrixXd &A);
+  HPolytope preImage(const Eigen::MatrixXd &A) const;
 
-  bool operator>(const Eigen::VectorXd &point);
-  bool operator>(const HPolytope &poly);
+  bool operator==(const HPolytope &rhs) const;
+  bool operator>=(const Eigen::VectorXd &point) const;
+  bool operator>=(const HPolytope &poly) const;
   HPolytope operator+(const HPolytope &rhs) const;
-  HPolytope operator-(const HPolytope &rhs);
-  HPolytope operator&(const HPolytope &rhs);
-  HPolytope operator|(const HPolytope &rhs);
+  HPolytope operator-(const HPolytope &rhs) const;
+  HPolytope operator&(const HPolytope &rhs) const;
   friend HPolytope operator*(const Eigen::MatrixXd &lhs, const HPolytope &rhs);
+
+  Eigen::Index dimension() const { return A_.cols(); }
 
 private:
   Eigen::MatrixXd A_;

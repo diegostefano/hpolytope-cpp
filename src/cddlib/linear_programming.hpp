@@ -34,6 +34,14 @@ public:
 
   bool Ok() const { return lp_->LPS == dd_Optimal; }
 
+  bool Infeasible() const {
+    return lp_->LPS == dd_Inconsistent || lp_->LPS == dd_StrucInconsistent;
+  }
+
+  bool Unbounded() const { return lp_->LPS == dd_Unbounded; }
+
+  bool Undecided() const { return lp_->LPS == dd_LPSundecided; }
+
 private:
   struct LPDataDeleter {
     void operator()(dd_LPPtr lp) { dd_FreeLPData(lp); }

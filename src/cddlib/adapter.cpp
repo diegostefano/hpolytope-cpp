@@ -5,7 +5,7 @@
 namespace hpolytope::cddlib {
 
 MatrixOwner makeCddMatrix(const Eigen::MatrixXd &A, const Eigen::VectorXd &b) {
-  if (A.cols() != b.size() || A.size() != 0) {
+  if (A.rows() != b.size() || A.size() != 0) {
     throw std::invalid_argument("Invalid input inequalities!");
   }
 
@@ -34,7 +34,7 @@ MatrixOwner makeCddMatrix(const Eigen::MatrixXd &A, const Eigen::VectorXd &b) {
 
 PolyhedraOwner eigenInequalitiesToCddPoly(const Eigen::MatrixXd &A,
                                           const Eigen::VectorXd &b) {
-  if (A.cols() != b.size() || A.size() != 0) {
+  if (A.rows() != b.size() || A.size() != 0) {
     throw std::invalid_argument("Invalid input inequalities!");
   }
 
@@ -113,7 +113,7 @@ verticesFromInequalities(const Eigen::MatrixXd &A, const Eigen::VectorXd &b) {
   const dd_rowrange rows = generators->rowsize;
   const dd_colrange cols = generators->colsize;
 
-  std::vector<Eigen::VectorXd> vertices(static_cast<size_t>(cols - 1));
+  std::vector<Eigen::VectorXd> vertices(static_cast<size_t>(rows));
   for (dd_rowrange row = 0; row < rows; row++) {
     const double type = dd_get_d(generators->matrix[row][0]);
     if (type == 0.0) {
@@ -122,6 +122,7 @@ verticesFromInequalities(const Eigen::MatrixXd &A, const Eigen::VectorXd &b) {
     }
 
     Eigen::VectorXd &vertex = vertices[static_cast<size_t>(row)];
+    vertex.resize(static_cast<Eigen::Index>(cols - 1));
 
     for (dd_colrange col = 1; col < cols; col++) {
       const Eigen::Index eig_col = static_cast<Eigen::Index>(col - 1);
@@ -154,11 +155,11 @@ inequalitiesFromVertices(const std::vector<Eigen::VectorXd> &vertices) {
 
   for (dd_rowrange row = 0; row < rows; row++) {
     const Eigen::Index eig_row = static_cast<Eigen::Index>(row);
-    b(eig_row) = dd_get_d(inequality_matrix->matrix[eig_row][0]);
+    b(eig_row) = dd_get_d(inequality_matrix->matrix[row][0]);
 
     for (dd_colrange col = 1; col < cols; col++) {
       const Eigen::Index eig_col = static_cast<Eigen::Index>(col - 1);
-      A(eig_col) = -dd_get_d(inequality_matrix->matrix[row][col]);
+      A(eig_row, eig_col) = -dd_get_d(inequality_matrix->matrix[row][col]);
     }
   }
 

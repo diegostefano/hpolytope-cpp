@@ -204,6 +204,24 @@ canonicalizeInequalities(const Eigen::MatrixXd &A, const Eigen::VectorXd &b) {
        << "): error creating canonicalized matrix from inequalities!";
     throw std::runtime_error(ss.str());
   }
+
+  Eigen::MatrixXd min_A;
+  min_A.resize(cdd_matrix->rowsize, cdd_matrix->colsize - 1);
+
+  Eigen::VectorXd min_b;
+  min_b.resize(cdd_matrix->rowsize);
+
+  for (dd_rowrange row; row < cdd_matrix->rowsize; ++row) {
+    Eigen::Index eig_row = static_cast<Eigen::Index>(row);
+    min_b(eig_row) = dd_get_d(cdd_matrix->matrix[row][0]);
+
+    for (dd_colrange col = 1; col < cdd_matrix->colsize; ++col) {
+      Eigen::Index eig_col = static_cast<Eigen::Index>(col - 1);
+      min_A(eig_row, eig_col) = -dd_get_d(cdd_matrix->matrix[row][col]);
+    }
+  }
+
+  return {min_A, min_b};
 }
 
 } // namespace hpolytope::cddlib

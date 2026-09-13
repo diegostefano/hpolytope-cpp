@@ -20,6 +20,7 @@ add_executable(
     ${PROJECT_NAME}
     main.cpp
     src/hpolytope.cpp
+    src/cddlib/adapter.cpp
     src/cddlib/runtime.cpp
     src/cddlib/linear_programming.cpp
 )

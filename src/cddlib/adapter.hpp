@@ -30,7 +30,7 @@ using MatrixOwner =
 PolyhedraOwner eigenInequalitiesToCddPoly(const Eigen::MatrixXd &,
                                           const Eigen::VectorXd &);
 
-PolyhedraOwner eigenVerticesToCddPoly(const std::vector<Eigen::MatrixXd> &);
+PolyhedraOwner eigenVerticesToCddPoly(const std::vector<Eigen::VectorXd> &);
 
 std::vector<Eigen::VectorXd> verticesFromInequalities(const Eigen::MatrixXd &,
                                                       const Eigen::VectorXd &);

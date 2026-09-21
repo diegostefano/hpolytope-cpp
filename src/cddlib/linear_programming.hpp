@@ -38,7 +38,10 @@ public:
     return lp_->LPS == dd_Inconsistent || lp_->LPS == dd_StrucInconsistent;
   }
 
-  bool Unbounded() const { return lp_->LPS == dd_Unbounded; }
+  bool Unbounded() const {
+    return lp_->LPS == dd_DualInconsistent ||
+           lp_->LPS == dd_StrucDualInconsistent || lp_->LPS == dd_Unbounded;
+  }
 
   bool Undecided() const { return lp_->LPS == dd_LPSundecided; }
 

@@ -12,8 +12,8 @@ HPolytope::HPolytope(size_t dimension) {
   A_ = Eigen::MatrixXd::Zero(1, dimension);
   b_ = Eigen::VectorXd::Constant(1, -1.0);
 
-  is_empty_ = true;
-  cached_vertices_ = std::vector<Eigen::VectorXd>{};
+  cached_emptiness_flag_ = true;
+  cached_generators_ = std::vector<Eigen::VectorXd>{};
 }
 
 HPolytope::HPolytope(const Eigen::MatrixXd &A, const Eigen::VectorXd &b) {
@@ -27,12 +27,13 @@ HPolytope::HPolytope(const Eigen::MatrixXd &A, const Eigen::VectorXd &b) {
 }
 
 bool HPolytope::isEmpty() const {
-  if (is_empty_.has_value()) {
-    return *is_empty_;
+  if (cached_emptiness_flag_) {
+    return *cached_emptiness_flag_;
   }
 
-  if (cached_vertices_.has_value()) {
-    return cached_vertices_->empty();
+  if (cached_generators_) {
+    cached_emptiness_flag_ = cached_generators_->empty();
+    return *cached_emptiness_flag_;
   }
 
   cddlib::LinearProgramming lp(dd_LPmin, dimension(), A_.rows());
@@ -41,12 +42,12 @@ bool HPolytope::isEmpty() const {
   lp.solve();
 
   if (lp.Ok()) {
-    is_empty_ = false;
+    cached_emptiness_flag_ = false;
     return false;
   }
 
   if (lp.Infeasible()) {
-    is_empty_ = true;
+    cached_emptiness_flag_ = true;
     return true;
   }
 
@@ -58,19 +59,23 @@ bool HPolytope::contains(const Eigen::VectorXd &point) const {
     throw std::invalid_argument("contains: invalid point dimension!");
   }
 
-  return ((A_ * point).array() <= b_.array()).all();
+  return ((A_ * point).array() <= b_.array() + kTolerance).all();
 }
 
 bool HPolytope::contains(const HPolytope &poly) const {
+  if (dimension() != poly.dimension()) {
+    throw std::invalid_argument("contains: incompatible dimensions.");
+  }
+
   if (poly.isEmpty())
     return true;
 
-  if (poly.hasCachedVertices()) {
-    return std::all_of(poly.cached_vertices_->begin(),
-                       poly.cached_vertices_->end(),
-                       [&](const Eigen::VectorXd &vertice) {
-                         return ((A_ * vertice).array() <= b_.array()).all();
-                       });
+  if (poly.hasCachedGenerators()) {
+    return std::all_of(
+        poly.cached_generators_->begin(), poly.cached_generators_->end(),
+        [&](const Eigen::VectorXd &vertice) {
+          return ((A_ * vertice).array() <= b_.array() + kTolerance).all();
+        });
   }
 
   cddlib::LinearProgramming lp(dd_LPmax, poly.dimension(), poly.A_.rows());
@@ -99,22 +104,17 @@ bool HPolytope::contains(const HPolytope &poly) const {
   return true;
 }
 
-std::vector<Eigen::VectorXd> HPolytope::vertices() const {
-  if (!cached_vertices_.has_value()) {
-    cached_vertices_ = cddlib::verticesFromInequalities(A_, b_);
+std::vector<Eigen::VectorXd> HPolytope::generators() const {
+  if (!cached_generators_.has_value()) {
+    cached_generators_ = cddlib::verticesFromInequalities(A_, b_);
   }
 
-  return *cached_vertices_;
+  return *cached_generators_;
 }
 
 HPolytope HPolytope::minimumRepresentation() const {
-  if (cached_vertices_.has_value()) {
-    auto [minimal_A, minimal_b] =
-        cddlib::inequalitiesFromVertices(cached_vertices_.value());
-    return HPolytope(minimal_A, minimal_b);
-  }
-
   auto [minimal_A, minimal_b] = cddlib::canonicalizeInequalities(A_, b_);
+
   return HPolytope(minimal_A, minimal_b);
 }
 
@@ -124,10 +124,10 @@ double HPolytope::supportFunction(const Eigen::VectorXd &direction) const {
         "Invalid direction dimensionality for support function!");
   }
 
-  if (cached_vertices_.has_value()) {
+  if (cached_generators_.has_value()) {
     double support = -std::numeric_limits<double>::infinity();
 
-    for (const auto &vertex : *cached_vertices_) {
+    for (const auto &vertex : *cached_generators_) {
       support = std::max(support, direction.dot(vertex));
     }
 
@@ -138,7 +138,18 @@ double HPolytope::supportFunction(const Eigen::VectorXd &direction) const {
   lp.setConstraints(A_, b_);
   lp.setCost(direction, 0.0);
 
-  return lp.solve();
+  const double result = lp.solve();
+
+  if (lp.Ok())
+    return result;
+
+  if (lp.Infeasible())
+    return -std::numeric_limits<double>::infinity();
+
+  if (lp.Unbounded())
+    return std::numeric_limits<double>::infinity();
+
+  throw std::runtime_error("Unable to evaluate support function.");
 }
 
 HPolytope HPolytope::minkowskiSum(const HPolytope &rhs) const {
@@ -151,21 +162,21 @@ HPolytope HPolytope::minkowskiSum(const HPolytope &rhs) const {
     return HPolytope(dimension());
   }
 
-  const auto &left_vertices = vertices();
-  const auto &right_vertices = rhs.vertices();
+  const auto &left_generators = generators();
+  const auto &right_generators = rhs.generators();
 
   std::vector<Eigen::VectorXd> output;
-  output.reserve(left_vertices.size() * right_vertices.size());
+  output.reserve(left_generators.size() * right_generators.size());
 
-  for (const Eigen::VectorXd &v : left_vertices) {
-    for (const Eigen::VectorXd &w : right_vertices) {
+  for (const Eigen::VectorXd &v : left_generators) {
+    for (const Eigen::VectorXd &w : right_generators) {
       output.emplace_back(v + w);
     }
   }
 
   const auto &[A, b] = cddlib::inequalitiesFromVertices(output);
   HPolytope result(A, b);
-  result.cached_vertices_ = output;
+  result.cached_generators_ = output;
 
   return result;
 }
@@ -174,10 +185,6 @@ HPolytope HPolytope::pontryaginDiff(const HPolytope &rhs) const {
   if (dimension() != rhs.dimension()) {
     throw std::invalid_argument("Minkowski sum requires both polytopes to "
                                 "have the same dimensionality.");
-  }
-
-  if (rhs.isEmpty()) {
-    return *this;
   }
 
   Eigen::MatrixXd A;
@@ -194,37 +201,37 @@ HPolytope HPolytope::pontryaginDiff(const HPolytope &rhs) const {
 }
 
 HPolytope HPolytope::linearMap(const Eigen::MatrixXd &M) const {
-  if (cached_vertices_.has_value()) {
-    if (M.cols() != dimension()) {
-      throw std::invalid_argument(
-          "Inconsistent dimension for linearMap input matrix.");
+  if (M.cols() != dimension()) {
+    throw std::invalid_argument(
+        "Inconsistent dimension for linearMap input matrix.");
+  }
+
+  if (M.rows() == dimension()) {
+    Eigen::FullPivLU<Eigen::MatrixXd> lu(M);
+
+    if (lu.isInvertible()) {
+      Eigen::MatrixXd A_new =
+          M.transpose().fullPivLu().solve(A_.transpose()).transpose();
+
+      return HPolytope(A_new, b_);
     }
-
-    std::vector<Eigen::VectorXd> new_vertices;
-    std::transform(cached_vertices_->begin(), cached_vertices_->end(),
-                   std::back_inserter(new_vertices),
-                   [&](const Eigen::VectorXd &v) { return M * v; });
-
-    const auto &[A, b] = cddlib::inequalitiesFromVertices(new_vertices);
-    HPolytope mapped_hpolytope(A, b);
-    mapped_hpolytope.cached_vertices_ = new_vertices;
-
-    return mapped_hpolytope;
   }
 
-  if (M.cols() != dimension() || M.rows() != dimension() ||
-      std::abs(M.determinant()) < kTolerance) {
-    throw std::invalid_argument("linearMap requires map matrix to be square "
-                                "and invertible for H-representation.");
-  }
+  cached_generators_ = generators();
+  std::vector<Eigen::VectorXd> new_generators;
+  std::transform(cached_generators_->begin(), cached_generators_->end(),
+                 std::back_inserter(new_generators),
+                 [&](const Eigen::VectorXd &v) { return M * v; });
 
-  Eigen::MatrixXd A_new = A_ * M.inverse();
+  const auto &[A, b] = cddlib::inequalitiesFromVertices(new_generators);
+  HPolytope mapped_hpolytope(A, b);
+  mapped_hpolytope.cached_generators_ = new_generators;
 
-  return HPolytope(A_new, b_);
+  return mapped_hpolytope;
 }
 
 HPolytope HPolytope::preImage(const Eigen::MatrixXd &M) const {
-  if (M.cols() != dimension()) {
+  if (M.rows() != dimension()) {
     throw std::invalid_argument(
         "Inconsistent dimension for preImage input matrix.");
   }

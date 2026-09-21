@@ -17,8 +17,8 @@ public:
   bool contains(const Eigen::VectorXd &point) const;
   bool contains(const HPolytope &poly) const;
 
-  bool hasCachedVertices() const { return cached_vertices_.has_value(); }
-  std::vector<Eigen::VectorXd> vertices() const;
+  bool hasCachedGenerators() const { return cached_generators_.has_value(); }
+  std::vector<Eigen::VectorXd> generators() const;
   HPolytope minimumRepresentation() const;
   double supportFunction(const Eigen::VectorXd &direction) const;
 
@@ -41,9 +41,9 @@ private:
   Eigen::MatrixXd A_;
   Eigen::VectorXd b_;
 
-  mutable std::optional<std::vector<Eigen::VectorXd>> cached_vertices_{
+  mutable std::optional<std::vector<Eigen::VectorXd>> cached_generators_{
       std::nullopt};
-  mutable std::optional<bool> is_empty_{std::nullopt};
+  mutable std::optional<bool> cached_emptiness_flag_{std::nullopt};
 
   static constexpr double kTolerance = 1e-6;
 };

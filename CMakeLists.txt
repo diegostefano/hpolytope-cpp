@@ -37,3 +37,9 @@ target_link_libraries(hpolytope
     PRIVATE
         PkgConfig::cddlib
 )
+
+include(CTest)
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()

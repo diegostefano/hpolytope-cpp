@@ -41,4 +41,25 @@ TEST_F(Core2DTest, RejectsPointWithWrongDimension) {
   EXPECT_THROW(p_.contains(point), std::invalid_argument);
 }
 
+TEST(HPolytopeEmptiness, DetectsFeasiblePolytope) {
+  hpolytope::HPolytope p{hpolytope::test::MakeP()};
+
+  EXPECT_FALSE(p.isEmpty());
+}
+
+TEST(HPolytopeEmptiness, DetectsInfeasiblePolytope) {
+  hpolytope::HPolytope empty{hpolytope::test::MakeEmpty2D()};
+
+  EXPECT_TRUE(empty.isEmpty());
+  EXPECT_EQ(empty.dimension(), 2);
+}
+
+TEST(HPolytopeEmptiness, ExplicitEmptyConstructorPreservesDimension) {
+  hpolytope::HPolytope empty(3);
+
+  EXPECT_TRUE(empty.isEmpty());
+  EXPECT_EQ(empty.dimension(), 3);
+  EXPECT_TRUE(empty.generators().empty());
+}
+
 } // namespace

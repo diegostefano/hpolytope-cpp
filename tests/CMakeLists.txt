@@ -4,6 +4,7 @@ add_executable(hpolytope_test
     construction_test.cpp
     operations_test.cpp
     queries_test.cpp
+    vertices_test.cpp
 )
 
 target_link_libraries(hpolytope_test

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef HPOLYTOPES__TESTS__TEST_POLYTOPES_HPP
+#define HPOLYTOPES__TESTS__TEST_POLYTOPES_HPP
 
 #include <Eigen/Dense>
 
@@ -112,3 +113,5 @@ inline Eigen::Matrix2d MakeM() {
 }
 
 } // namespace hpolytope::test
+
+#endif

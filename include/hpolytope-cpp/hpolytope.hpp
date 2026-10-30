@@ -37,6 +37,9 @@ public:
 
   Eigen::Index dimension() const { return A_.cols(); }
 
+  inline Eigen::MatrixXd A() const { return A_; }
+  inline Eigen::VectorXd b() const { return b_; }
+
 private:
   Eigen::MatrixXd A_;
   Eigen::VectorXd b_;

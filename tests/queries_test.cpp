@@ -41,4 +41,22 @@ TEST_F(Core2DTest, RejectsPointWithWrongDimension) {
   EXPECT_THROW(p_.contains(point), std::invalid_argument);
 }
 
+TEST(HPolytopeEquality, IgnoresScaledReorderedRedundantInequalities) {
+  const hpolytope::HPolytope p = hpolytope::test::MakeP();
+  const hpolytope::HPolytope redundant = hpolytope::test::MakeRedundantP();
+
+  EXPECT_TRUE(p == redundant);
+  EXPECT_TRUE(redundant == p);
+}
+
+TEST(HPolytopeMinimumRepresentation, PreserveRepresentedSet) {
+  const hpolytope::HPolytope expected = hpolytope::test::MakeP();
+  const hpolytope::HPolytope redundant = hpolytope::test::MakeRedundantP();
+
+  const hpolytope::HPolytope reduced = redundant.minimumRepresentation();
+
+  EXPECT_TRUE(reduced.A().rows() == expected.A().rows());
+  EXPECT_TRUE(reduced == expected);
+}
+
 } // namespace

@@ -206,15 +206,17 @@ HPolytope HPolytope::linearMap(const Eigen::MatrixXd &M) const {
         "Inconsistent dimension for linearMap input matrix.");
   }
 
+  Eigen::FullPivLU<Eigen::MatrixXd> lu(M);
+
+  if (!lu.isInvertible()) {
+    throw std::invalid_argument("Singular linearMap input matrix.");
+  }
+
   if (M.rows() == dimension()) {
-    Eigen::FullPivLU<Eigen::MatrixXd> lu(M);
+    Eigen::MatrixXd A_new =
+        M.transpose().fullPivLu().solve(A_.transpose()).transpose();
 
-    if (lu.isInvertible()) {
-      Eigen::MatrixXd A_new =
-          M.transpose().fullPivLu().solve(A_.transpose()).transpose();
-
-      return HPolytope(A_new, b_);
-    }
+    return HPolytope(A_new, b_);
   }
 
   cached_generators_ = generators();

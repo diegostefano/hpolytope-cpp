@@ -146,7 +146,7 @@ inequalitiesFromVertices(const std::vector<Eigen::VectorXd> &vertices) {
 
   size_t equality_count = 0;
   for (dd_rowrange row = 0; row < rows; ++row) {
-    equality_count += set_member(row, inequality_matrix->linset) != 0;
+    equality_count += set_member(row + 1, inequality_matrix->linset) != 0;
   }
 
   const Eigen::Index eig_rows =
@@ -161,7 +161,7 @@ inequalitiesFromVertices(const std::vector<Eigen::VectorXd> &vertices) {
 
   Eigen::Index output_row = 0;
   for (dd_rowrange row = 0; row < rows; row++) {
-    const bool is_equality = set_member(row, inequality_matrix->linset);
+    const bool is_equality = set_member(row + 1, inequality_matrix->linset);
 
     b(output_row) = dd_get_d(inequality_matrix->matrix[row][0]);
 

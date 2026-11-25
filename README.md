@@ -1,4 +1,7 @@
 # hpolytope-cpp
+[![CI](https://github.com/diegostefano/hpolytope-cpp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/diegostefano/hpolytope-cpp/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/diegostefano/hpolytope-cpp)](https://github.com/diegostefano/hpolytope-cpp/releases/latest)
+[![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
 
 ## Overview
 

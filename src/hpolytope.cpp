@@ -73,7 +73,8 @@ bool HPolytope::contains(const Eigen::VectorXd &point) const {
 
   const HPolytope norm_poly = normalized();
 
-  return ((norm_poly.A() * point).array() <= norm_poly.b().array() + kTolerance).all();
+  return ((norm_poly.A() * point).array() <= norm_poly.b().array() + kTolerance)
+      .all();
 }
 
 bool HPolytope::contains(const HPolytope &poly) const {
@@ -87,11 +88,13 @@ bool HPolytope::contains(const HPolytope &poly) const {
   const HPolytope norm_poly = normalized();
 
   if (poly.hasCachedGenerators()) {
-    return std::all_of(
-        poly.cached_generators_->begin(), poly.cached_generators_->end(),
-        [&](const Eigen::VectorXd &vertice) {
-          return ((norm_poly.A() * vertice).array() <= norm_poly.b().array() + kTolerance).all();
-        });
+    return std::all_of(poly.cached_generators_->begin(),
+                       poly.cached_generators_->end(),
+                       [&](const Eigen::VectorXd &vertice) {
+                         return ((norm_poly.A() * vertice).array() <=
+                                 norm_poly.b().array() + kTolerance)
+                             .all();
+                       });
   }
 
   cddlib::LinearProgramming lp(dd_LPmax, poly.dimension(), poly.A_.rows());
@@ -222,30 +225,35 @@ HPolytope HPolytope::linearMap(const Eigen::MatrixXd &M) const {
         "Inconsistent dimension for linearMap input matrix.");
   }
 
-  Eigen::FullPivLU<Eigen::MatrixXd> lu(M);
-
-  if (!lu.isInvertible()) {
-    throw std::invalid_argument("Singular linearMap input matrix.");
+  if (isEmpty()) {
+    return HPolytope(M.rows());
   }
 
-  if (M.rows() == dimension()) {
-    Eigen::MatrixXd A_new =
-        M.transpose().fullPivLu().solve(A_.transpose()).transpose();
+  if (M.rows() == M.cols()) {
+    Eigen::FullPivLU<Eigen::MatrixXd> lu(M.transpose());
 
-    return HPolytope(A_new, b_);
+    if (lu.isInvertible()) {
+      Eigen::MatrixXd A_new = lu.solve(A_.transpose()).transpose();
+
+      return HPolytope(A_new, b_);
+    }
   }
 
-  cached_generators_ = generators();
+  const auto original_generators = generators();
+
   std::vector<Eigen::VectorXd> new_generators;
-  std::transform(cached_generators_->begin(), cached_generators_->end(),
-                 std::back_inserter(new_generators),
-                 [&](const Eigen::VectorXd &v) { return M * v; });
+  new_generators.reserve(original_generators.size());
+
+  for (const auto &v : original_generators) {
+    new_generators.emplace_back(M * v);
+  }
 
   const auto &[A, b] = cddlib::inequalitiesFromVertices(new_generators);
-  HPolytope mapped_hpolytope(A, b);
-  mapped_hpolytope.cached_generators_ = new_generators;
 
-  return mapped_hpolytope;
+  HPolytope result(A, b);
+  result.cached_generators_ = std::move(new_generators);
+
+  return result;
 }
 
 HPolytope HPolytope::preImage(const Eigen::MatrixXd &M) const {

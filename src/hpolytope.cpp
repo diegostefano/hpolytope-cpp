@@ -57,12 +57,23 @@ bool HPolytope::isEmpty() const {
   throw std::runtime_error("Unable to determine polytope emptiness from LP.");
 }
 
+HPolytope HPolytope::normalized() const {
+  Eigen::VectorXd norms = A_.rowwise().norm();
+
+  Eigen::MatrixXd A_norm = A_.array().colwise() / norms.array();
+  Eigen::VectorXd b_norm = b_.array() / norms.array();
+
+  return HPolytope(A_norm, b_norm);
+}
+
 bool HPolytope::contains(const Eigen::VectorXd &point) const {
   if (point.size() != dimension()) {
     throw std::invalid_argument("contains: invalid point dimension!");
   }
 
-  return ((A_ * point).array() <= b_.array() + kTolerance).all();
+  const HPolytope norm_poly = normalized();
+
+  return ((norm_poly.A() * point).array() <= norm_poly.b().array() + kTolerance).all();
 }
 
 bool HPolytope::contains(const HPolytope &poly) const {
@@ -73,11 +84,13 @@ bool HPolytope::contains(const HPolytope &poly) const {
   if (poly.isEmpty())
     return true;
 
+  const HPolytope norm_poly = normalized();
+
   if (poly.hasCachedGenerators()) {
     return std::all_of(
         poly.cached_generators_->begin(), poly.cached_generators_->end(),
         [&](const Eigen::VectorXd &vertice) {
-          return ((A_ * vertice).array() <= b_.array() + kTolerance).all();
+          return ((norm_poly.A() * vertice).array() <= norm_poly.b().array() + kTolerance).all();
         });
   }
 

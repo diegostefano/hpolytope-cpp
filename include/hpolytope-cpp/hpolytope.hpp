@@ -25,6 +25,7 @@ public:
   HPolytope minimumRepresentation() const;
   double supportFunction(const Eigen::VectorXd &direction) const;
 
+  HPolytope normalized() const;
   HPolytope minkowskiSum(const HPolytope &rhs) const;
   HPolytope pontryaginDiff(const HPolytope &rhs) const;
   HPolytope linearMap(const Eigen::MatrixXd &A) const;

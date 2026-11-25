@@ -89,7 +89,7 @@ on which a method is called, and $Q$ is the other polytope in a binary operation
 
 | Operation | Mathematical representation | C++ signature |
 | --- | --- | --- |
-| Construct from inequalities | $P = \{x \mid Ax \le b\}$ | ```cpp HPolytope(const Eigen::MatrixXd &A, const Eigen::VectorXd &b)``` |
+| Construct from inequalities | $P = \{x \mid Ax \le b\}$ | `HPolytope(const Eigen::MatrixXd &A, const Eigen::VectorXd &b)` |
 | Construct an empty polytope | $P = \varnothing \subseteq \mathbb{R}^n$ | `HPolytope(size_t dimension)` |
 | Test emptiness | $P = \varnothing$ | `bool isEmpty() const` |
 | Point membership | $x \in P$ | `bool contains(const Eigen::VectorXd &point) const`<br>`bool operator>=(const Eigen::VectorXd &point) const` |
@@ -101,7 +101,7 @@ on which a method is called, and $Q$ is the other polytope in a binary operation
 | Linear image | $MP = \{Mx \mid x \in P\}$ for invertible $M$ | `HPolytope linearMap(const Eigen::MatrixXd &M) const`<br>`HPolytope operator*(const Eigen::MatrixXd &M, const HPolytope &P)` |
 | Linear preimage | $\{x \mid Mx \in P\} = \{x \mid AMx \le b\}$ | `HPolytope preImage(const Eigen::MatrixXd &M) const` |
 | Support function | $h_P(d) = \sup_{x \in P} d^\top x$ | `double supportFunction(const Eigen::VectorXd &direction) const` |
-| Enumerate generators | A set $G$ with $P = \operatorname{conv}(G)$ for bounded $P$ | `std::vector<Eigen::VectorXd> generators() const` |
+| Enumerate generators | A set $G$ with $P = \mathrm{conv}(G)$ for bounded $P$ | `std::vector<Eigen::VectorXd> generators() const` |
 
 ## Testing
 

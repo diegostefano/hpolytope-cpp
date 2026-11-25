@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Diego Stéfano Fonseca Ferreira
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "hpolytope-cpp/hpolytope.hpp"
 
 #include "cddlib/adapter.hpp"

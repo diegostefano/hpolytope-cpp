@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Diego Stéfano Fonseca Ferreira
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "test_helpers.hpp"
 #include "test_polytopes.hpp"
 

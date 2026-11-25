@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Diego Stéfano Fonseca Ferreira
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #ifndef __HPOLYTOPES__POLYTOPE_HPP__
 #define __HPOLYTOPES__POLYTOPE_HPP__
 

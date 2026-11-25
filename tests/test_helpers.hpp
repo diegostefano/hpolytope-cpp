@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Diego Stéfano Fonseca Ferreira
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #ifndef HPOLYTOPE__TESTS__TEST_HELPERS_HPP
 #define HPOLYTOPE__TESTS__TEST_HELPERS_HPP
 

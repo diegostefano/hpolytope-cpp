@@ -58,6 +58,49 @@ PolyhedraOwner eigenInequalitiesToCddPoly(const Eigen::MatrixXd &A,
   return output;
 }
 
+std::pair<Eigen::MatrixXd, Eigen::VectorXd>
+cddMatrixToEigenInequalities(const MatrixOwner inequality_matrix) {
+  const dd_rowrange rows = inequality_matrix->rowsize;
+  const dd_colrange cols = inequality_matrix->colsize;
+
+  size_t equality_count = 0;
+  for (dd_rowrange row = 0; row < rows; ++row) {
+    equality_count += set_member(row + 1, inequality_matrix->linset) != 0;
+  }
+
+  const Eigen::Index eig_rows =
+      static_cast<Eigen::Index>(rows + equality_count);
+  const Eigen::Index eig_cols = static_cast<Eigen::Index>(cols - 1);
+
+  Eigen::MatrixXd A;
+  A.resize(eig_rows, eig_cols);
+
+  Eigen::VectorXd b;
+  b.resize(eig_rows);
+
+  Eigen::Index output_row = 0;
+  for (dd_rowrange row = 0; row < rows; row++) {
+    const bool is_equality = set_member(row + 1, inequality_matrix->linset);
+
+    b(output_row) = dd_get_d(inequality_matrix->matrix[row][0]);
+
+    for (dd_colrange col = 1; col < cols; col++) {
+      const Eigen::Index eig_col = static_cast<Eigen::Index>(col - 1);
+      A(output_row, eig_col) = -dd_get_d(inequality_matrix->matrix[row][col]);
+    }
+
+    ++output_row;
+
+    if (is_equality) {
+      b(output_row) = -b(output_row - 1);
+      A.row(output_row) = -A.row(output_row - 1);
+      ++output_row;
+    }
+  }
+
+  return {A, b};
+}
+
 PolyhedraOwner
 eigenVerticesToCddPoly(const std::vector<Eigen::VectorXd> &vertices) {
   if (vertices.size() == 0) {
@@ -144,45 +187,7 @@ inequalitiesFromVertices(const std::vector<Eigen::VectorXd> &vertices) {
 
   MatrixOwner inequality_matrix = MatrixOwner(dd_CopyInequalities(poly.get()));
 
-  const dd_rowrange rows = inequality_matrix->rowsize;
-  const dd_colrange cols = inequality_matrix->colsize;
-
-  size_t equality_count = 0;
-  for (dd_rowrange row = 0; row < rows; ++row) {
-    equality_count += set_member(row + 1, inequality_matrix->linset) != 0;
-  }
-
-  const Eigen::Index eig_rows =
-      static_cast<Eigen::Index>(rows + equality_count);
-  const Eigen::Index eig_cols = static_cast<Eigen::Index>(cols - 1);
-
-  Eigen::MatrixXd A;
-  A.resize(eig_rows, eig_cols);
-
-  Eigen::VectorXd b;
-  b.resize(eig_rows);
-
-  Eigen::Index output_row = 0;
-  for (dd_rowrange row = 0; row < rows; row++) {
-    const bool is_equality = set_member(row + 1, inequality_matrix->linset);
-
-    b(output_row) = dd_get_d(inequality_matrix->matrix[row][0]);
-
-    for (dd_colrange col = 1; col < cols; col++) {
-      const Eigen::Index eig_col = static_cast<Eigen::Index>(col - 1);
-      A(output_row, eig_col) = -dd_get_d(inequality_matrix->matrix[row][col]);
-    }
-
-    ++output_row;
-
-    if (is_equality) {
-      b(output_row) = -b(output_row - 1);
-      A.row(output_row) = -A.row(output_row - 1);
-      ++output_row;
-    }
-  }
-
-  return {A, b};
+  return cddMatrixToEigenInequalities(std::move(inequality_matrix));
 }
 
 std::pair<Eigen::MatrixXd, Eigen::VectorXd>
@@ -224,23 +229,7 @@ canonicalizeInequalities(const Eigen::MatrixXd &A, const Eigen::VectorXd &b) {
     throw std::runtime_error(ss.str());
   }
 
-  Eigen::MatrixXd min_A;
-  min_A.resize(cdd_matrix->rowsize, cdd_matrix->colsize - 1);
-
-  Eigen::VectorXd min_b;
-  min_b.resize(cdd_matrix->rowsize);
-
-  for (dd_rowrange row = 0; row < cdd_matrix->rowsize; ++row) {
-    Eigen::Index eig_row = static_cast<Eigen::Index>(row);
-    min_b(eig_row) = dd_get_d(cdd_matrix->matrix[row][0]);
-
-    for (dd_colrange col = 1; col < cdd_matrix->colsize; ++col) {
-      Eigen::Index eig_col = static_cast<Eigen::Index>(col - 1);
-      min_A(eig_row, eig_col) = -dd_get_d(cdd_matrix->matrix[row][col]);
-    }
-  }
-
-  return {min_A, min_b};
+  return cddMatrixToEigenInequalities(std::move(cdd_matrix));
 }
 
 } // namespace hpolytope::cddlib

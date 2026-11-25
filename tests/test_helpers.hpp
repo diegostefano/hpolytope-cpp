@@ -23,6 +23,8 @@ inline void
 ExpectVerticesNearUnordered(const std::vector<Eigen::VectorXd> &actual,
                             const std::vector<Eigen::VectorXd> &expected,
                             double tolerance = kOracleTolerance) {
+  ASSERT_EQ(actual.size(), expected.size()) << "Unexpected number of vertices";
+
   std::vector<bool> used(expected.size(), false);
 
   for (std::size_t i = 0; i < actual.size(); ++i) {

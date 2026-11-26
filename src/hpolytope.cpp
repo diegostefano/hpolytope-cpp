@@ -92,13 +92,12 @@ bool HPolytope::contains(const HPolytope &poly) const {
   const Eigen::VectorXd norm_b = norm_poly.b();
 
   if (poly.hasCachedGenerators()) {
-    return std::all_of(poly.cached_generators_->begin(),
-                       poly.cached_generators_->end(),
-                       [&](const Eigen::VectorXd &vertice) {
-                         return ((norm_A * vertice).array() <=
-                                 norm_b.array() + kTolerance)
-                             .all();
-                       });
+    return std::all_of(
+        poly.cached_generators_->begin(), poly.cached_generators_->end(),
+        [&](const Eigen::VectorXd &vertice) {
+          return ((norm_A * vertice).array() <= norm_b.array() + kTolerance)
+              .all();
+        });
   }
 
   cddlib::LinearProgramming lp(dd_LPmax, poly.dimension(), poly.A_.rows());
@@ -208,6 +207,12 @@ HPolytope HPolytope::pontryaginDiff(const HPolytope &rhs) const {
   if (dimension() != rhs.dimension()) {
     throw std::invalid_argument("Minkowski sum requires both polytopes to "
                                 "have the same dimensionality.");
+  }
+
+  if (rhs.isEmpty()) {
+    throw std::invalid_argument(
+        "Pontryagin difference with an empty right operand "
+        "produces an unsupported unbounded set.");
   }
 
   Eigen::MatrixXd A;

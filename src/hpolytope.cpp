@@ -88,13 +88,15 @@ bool HPolytope::contains(const HPolytope &poly) const {
     return true;
 
   const HPolytope norm_poly = normalized();
+  const Eigen::MatrixXd norm_A = norm_poly.A();
+  const Eigen::VectorXd norm_b = norm_poly.b();
 
   if (poly.hasCachedGenerators()) {
     return std::all_of(poly.cached_generators_->begin(),
                        poly.cached_generators_->end(),
                        [&](const Eigen::VectorXd &vertice) {
-                         return ((norm_poly.A() * vertice).array() <=
-                                 norm_poly.b().array() + kTolerance)
+                         return ((norm_A * vertice).array() <=
+                                 norm_b.array() + kTolerance)
                              .all();
                        });
   }
@@ -102,8 +104,8 @@ bool HPolytope::contains(const HPolytope &poly) const {
   cddlib::LinearProgramming lp(dd_LPmax, poly.dimension(), poly.A_.rows());
   lp.setConstraints(poly.A_, poly.b_);
 
-  for (Eigen::Index i = 0; i < A_.rows(); ++i) {
-    lp.setCost(A_.row(i).transpose(), 0.0);
+  for (Eigen::Index i = 0; i < norm_A.rows(); ++i) {
+    lp.setCost(norm_A.row(i).transpose(), 0.0);
     const double max_value = lp.solve();
 
     if (lp.Infeasible()) {
@@ -118,7 +120,7 @@ bool HPolytope::contains(const HPolytope &poly) const {
       throw std::runtime_error("LP solver failure");
     }
 
-    if (max_value > b_(i) + kTolerance)
+    if (max_value > norm_b(i) + kTolerance)
       return false;
   }
 

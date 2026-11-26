@@ -60,6 +60,8 @@ bool HPolytope::isEmpty() const {
 HPolytope HPolytope::normalized() const {
   Eigen::VectorXd norms = A_.rowwise().norm();
 
+  norms = (norms.array() == 0.0).select(1.0, norms.array());
+
   Eigen::MatrixXd A_norm = A_.array().colwise() / norms.array();
   Eigen::VectorXd b_norm = b_.array() / norms.array();
 
